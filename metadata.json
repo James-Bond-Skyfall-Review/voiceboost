@@ -1,0 +1,10 @@
+{
+  "name": "VoiceTutor AI",
+  "description": "A mobile-first AI voice tutor for language learning and proficiency building, powered by Gemini.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

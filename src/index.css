@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #2563eb;
+  --color-dark: #05070A;
+  --color-text-muted: #E0E6ED;
+}
+
+@layer base {
+  body {
+    @apply bg-[#05070A] text-[#E0E6ED] font-sans;
+  }
+}
+
+@layer components {
+  .markdown-body {
+    @apply space-y-2;
+  }
+  .markdown-body p {
+    @apply mb-2 last:mb-0 text-sm leading-relaxed;
+  }
+  .markdown-body strong {
+    @apply font-bold text-blue-400;
+  }
+  .markdown-body ul {
+    @apply list-disc list-inside;
+  }
+}
+
+.safe-paddings {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+.glass-card {
+  @apply bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl shadow-2xl;
+}
+
+.ambient-bg-1 {
+  @apply absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none;
+}
+
+.ambient-bg-2 {
+  @apply absolute bottom-[-5%] right-[-5%] w-[30%] h-[30%] bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none;
+}
+

@@ -1,11 +1,29 @@
-<div align="center">
+# VoiceTutor AI
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+A mobile-first AI Voice Tutor application built with React, Vite, and Google Gemini.
 
-  <h1>Built with AI Studio</h2>
+## ⚠️ Security Warning
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+**FOR PERSONAL USE ONLY.**
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+This application is designed as a client-side only app for demonstration and personal use. 
+It uses the **direct client-side integration** of the Google Generative AI SDK.
 
-</div>
+**IMPORTANT:**
+- The API key (`GEMINI_API_KEY`) is exposed in the browser's network requests.
+- DO NOT deploy this application publicly without moving the Gemini API calls to a secure backend.
+- The developer is responsible for any API usage costs.
+
+## Features
+
+- **Voice Practicing:** Practice conversation naturally using your microphone.
+- **Proficiency Levels:** Choose between Beginner, Intermediate, and Advanced feedback levels.
+- **Real-time Feedback:** Get corrections and translations using special AI tags.
+- **Speech Controls:** Adjust AI speaking rate.
+- **Debug Console:** Track API latency and system logs.
+
+## Setup
+
+1. Rename `.env.example` to `.env`.
+2. Add your `GEMINI_API_KEY`.
+3. Run `npm install` and `npm run dev`.
