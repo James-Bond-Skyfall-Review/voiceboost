@@ -4,29 +4,29 @@ import { Transcript } from './components/VoiceTutor/Transcript';
 import { ControlBar } from './components/VoiceTutor/ControlBar';
 import { Visualizer } from './components/VoiceTutor/Visualizer';
 import { DebugConsole } from './components/VoiceTutor/DebugConsole';
-import { useSpeechRecognition } from './hooks/useSpeechRecognition';
-import { useSpeechSynthesis } from './hooks/useSpeechSynthesis';
-import { generateTutorResponse } from './lib/gemini';
+import { useGeminiLive } from './hooks/useGeminiLive';
 import { Message, ProficiencyLevel, DebugLog } from './types';
-import { SYSTEM_PROMPT, MAX_TRANSCRIPT_MESSAGES, SPEECH_RATES } from './constants';
+import { SPEECH_RATES } from './constants';
 import { cn } from './lib/utils';
 
 export default function App() {
   // State
   const [messages, setMessages] = useState<Message[]>([]);
   const [proficiency, setProficiency] = useState<ProficiencyLevel>('Beginner');
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const [logs, setLogs] = useState<DebugLog[]>([]);
   const [latency, setLatency] = useState<number | null>(null);
   const [speechRate, setSpeechRate] = useState(SPEECH_RATES.Beginner);
 
-  // Hooks
-  const { isListening, transcript, error: speechError, startListening, stopListening } = useSpeechRecognition();
-  const { isSpeaking, speak, cancel: stopSpeaking } = useSpeechSynthesis();
-
-  // Refs
-  const lastTranscriptRef = useRef('');
+  // Gemini Live Hook
+  const { 
+    isActive, 
+    isReady, 
+    isSpeaking, 
+    error: liveError, 
+    connect, 
+    disconnect 
+  } = useGeminiLive(proficiency);
 
   // Helpers
   const addLog = useCallback((message: string, type: DebugLog['type'] = 'info') => {
@@ -38,92 +38,37 @@ export default function App() {
     }, ...prev].slice(0, 100));
   }, []);
 
+  // Handle Response/Transcript update from hook
+  const handleLiveMessage = useCallback((msg: Message) => {
+    setMessages(prev => {
+      // If the message is from assistant and the last one was also and it's short, maybe merge?
+      // For now just append.
+      return [...prev, msg].slice(-50);
+    });
+  }, []);
+
   // Handle Level Change
   const handleProficiencyChange = useCallback((level: ProficiencyLevel) => {
     setProficiency(level);
     setSpeechRate(SPEECH_RATES[level]);
-    addLog(`Changed proficiency to ${level}`);
+    addLog(`Changed proficiency to ${level}. Reconnect to apply.`);
   }, [addLog]);
-
-  // Handle Response Generation
-  const processInput = useCallback(async (text: string) => {
-    if (!text.trim()) return;
-
-    setIsProcessing(true);
-    addLog(`Processing input: "${text}"`);
-    const startTime = Date.now();
-
-    const userMessage: Message = {
-      id: uuidv4(),
-      role: 'user',
-      content: text,
-      timestamp: Date.now(),
-    };
-
-    setMessages(prev => [...prev, userMessage].slice(-MAX_TRANSCRIPT_MESSAGES));
-
-    try {
-      // Map history for Gemini API
-      const history = messages.map(m => ({
-        role: m.role === 'user' ? 'user' as const : 'model' as const,
-        parts: [{ text: m.content }]
-      }));
-
-      const aiText = await generateTutorResponse(SYSTEM_PROMPT(proficiency), history, text);
-      const endTime = Date.now();
-      setLatency(endTime - startTime);
-      addLog(`AI Response received in ${endTime - startTime}ms`, 'success');
-
-      const aiMessage: Message = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: aiText,
-        timestamp: Date.now(),
-      };
-
-      setMessages(prev => [...prev, aiMessage].slice(-MAX_TRANSCRIPT_MESSAGES));
-      
-      // AI Speaks back
-      speak(aiText, speechRate);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-      addLog(`AI Error: ${errorMsg}`, 'error');
-      
-      const errorMessage: Message = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: `I'm sorry, I'm having trouble connecting right now. Error: ${errorMsg}`,
-        timestamp: Date.now(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [messages, proficiency, speak, addLog, speechRate]);
 
   // Handle Toggle
   const handleToggleRecording = useCallback(() => {
-    if (isListening) {
-      stopListening();
+    if (isActive) {
+      addLog("Ending session");
+      disconnect();
     } else {
-      stopSpeaking();
-      startListening();
+      addLog("Starting live session...");
+      connect(handleLiveMessage);
     }
-  }, [isListening, startListening, stopListening, stopSpeaking]);
-
-  // Side Effect: Auto-process when speech ends
-  useEffect(() => {
-    if (!isListening && transcript && transcript !== lastTranscriptRef.current) {
-      lastTranscriptRef.current = transcript;
-      processInput(transcript);
-    }
-  }, [isListening, transcript, processInput]);
+  }, [isActive, connect, disconnect, handleLiveMessage, addLog]);
 
   useEffect(() => {
-    if (speechError) {
-      addLog(`Speech Error: ${speechError}`, 'error');
-    }
-  }, [speechError, addLog]);
+    if (liveError) addLog(`Live Error: ${liveError}`, 'error');
+    if (isReady) addLog("Gemini is ready and listening!", 'success');
+  }, [liveError, isReady, addLog]);
 
   return (
     <div className="flex flex-col h-screen bg-[#05070A] text-[#E0E6ED] overflow-hidden safe-paddings relative transition-colors duration-500">
@@ -140,9 +85,9 @@ export default function App() {
           <div>
             <h1 className="text-xs font-semibold tracking-widest uppercase opacity-90">VoiceTutor AI</h1>
             <div className="flex items-center gap-2 mt-0.5">
-              <div className={cn("w-1.5 h-1.5 rounded-full ring-2 ring-offset-2 ring-offset-black/20", isSpeaking ? "bg-blue-500 animate-pulse ring-blue-500/30" : "bg-emerald-500 ring-emerald-500/30")} />
+              <div className={cn("w-1.5 h-1.5 rounded-full ring-2 ring-offset-2 ring-offset-black/20", (isSpeaking || isReady) ? "bg-blue-500 animate-pulse ring-blue-500/30" : "bg-gray-500 ring-gray-500/30")} />
               <span className="text-[9px] text-[#E0E6ED]/60 font-mono tracking-widest uppercase">
-                {isSpeaking ? "AI Speaking" : "Live Connection"}
+                {isSpeaking ? "AI Speaking" : isReady ? "Listening..." : "System Idle"}
               </span>
             </div>
           </div>
@@ -162,28 +107,23 @@ export default function App() {
         
         {/* Active Speech Visualizer */}
         <div className="absolute top-28 left-0 right-0 flex justify-center pointer-events-none z-20">
-          <Visualizer isActive={isListening} isSpeaking={isSpeaking} />
+          <Visualizer isActive={isActive && !isSpeaking} isSpeaking={isSpeaking} />
         </div>
-
-        {/* Floating Recognition Text (Mobile only) */}
-        {isListening && transcript && (
-          <div className="absolute bottom-40 left-6 right-6 p-4 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl text-sm text-blue-400 font-medium italic animate-in fade-in slide-in-from-bottom-4">
-            {transcript}...
-          </div>
-        )}
       </main>
 
       {/* Controls */}
       <ControlBar 
-        isRecording={isListening}
+        isRecording={isActive && !isSpeaking}
         proficiency={proficiency}
         onToggleRecording={handleToggleRecording}
         onProficiencyChange={handleProficiencyChange}
-        isProcessing={isProcessing}
+        isProcessing={isActive && !isReady}
         onToggleDebug={() => setIsDebugOpen(true)}
         speechRate={speechRate}
         onSpeechRateChange={setSpeechRate}
         isSpeaking={isSpeaking}
+        isAutoListen={false} // Managed by Live context now
+        onAutoListenToggle={() => {}} 
       />
 
       {/* Debug Overly */}

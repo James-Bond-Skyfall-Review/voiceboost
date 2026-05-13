@@ -13,6 +13,8 @@ interface ControlBarProps {
   speechRate: number;
   onSpeechRateChange: (rate: number) => void;
   isSpeaking: boolean;
+  isAutoListen: boolean;
+  onAutoListenToggle: (val: boolean) => void;
 }
 
 export function ControlBar({
@@ -25,6 +27,8 @@ export function ControlBar({
   speechRate,
   onSpeechRateChange,
   isSpeaking,
+  isAutoListen,
+  onAutoListenToggle,
 }: ControlBarProps) {
   return (
     <footer className="z-40 p-6 pb-10 bg-black/40 backdrop-blur-2xl border-t border-white/5 relative">
@@ -57,6 +61,18 @@ export function ControlBar({
 
           {/* Right: Actions */}
           <div className="flex items-center gap-4">
+            <button 
+              onClick={() => onAutoListenToggle(!isAutoListen)}
+              className={cn(
+                "px-3 py-1.5 border rounded-full text-[9px] font-bold tracking-widest uppercase transition-all flex items-center gap-2",
+                isAutoListen 
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" 
+                  : "bg-white/5 border-white/10 text-white/40"
+              )}
+            >
+              <div className={cn("w-1.5 h-1.5 rounded-full", isAutoListen ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "bg-white/20")} />
+              Continuous
+            </button>
             <button 
               onClick={onToggleDebug}
               className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors"
